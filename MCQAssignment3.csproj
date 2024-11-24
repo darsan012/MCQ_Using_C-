@@ -11,9 +11,13 @@
   <ItemGroup>
     <None Remove="Views\Quiz\" />
     <None Remove="Services\" />
+    <None Remove="Services\CSD 3354 Assignment 3.docx" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Views\Quiz\" />
     <Folder Include="Services\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Services\CSD 3354 Assignment 3.docx" />
   </ItemGroup>
 </Project>
