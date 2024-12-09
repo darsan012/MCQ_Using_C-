@@ -1,18 +1,32 @@
 ﻿
-using MCQAssignment3.Services;
+using MCQAssignment3.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
-
 builder.Services.AddSession();
-builder.Services.AddScoped<QuizService>();  // Register the QuizService
 
-
+builder.Services.AddControllersWithViews();
+builder.Services.AddDbContext<QuizContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
+// Uploading quizzes to the database
+using(var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<QuizContext>();
+    try
+    {
+        context.Database.Migrate();
+        Quizzes.Seed(context);
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Error occured uploading quizes to the database: {error.InnerException?.Message}");
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

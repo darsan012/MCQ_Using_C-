@@ -1,22 +1,20 @@
-﻿using System.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using MCQAssignment3.Models;
 using MCQAssignment3.Services;
+using MCQAssignment3.Data;
 
 namespace MCQAssignment3.Controllers
 {
 
     public class QuizController : Controller
     {
-        private readonly QuizService _quizService;
+        private readonly QuizContext _context;
 
-        // Inject QuizService into the controller
-        public QuizController(QuizService quizService)
+        // Inject QuizContext into the controller
+        public QuizController(QuizContext context)
         {
-            _quizService = quizService;
+            _context = context;
         }
-      
-
         public IActionResult Index()
         {
             return View();
@@ -24,8 +22,12 @@ namespace MCQAssignment3.Controllers
 
         public IActionResult StartQuiz()
         {
-            var selectedQuestions = _quizService.GetRandomQuestions(10);
-            HttpContext.Session.Set("Questions", selectedQuestions);
+            var questions = _context.Questions.ToList();
+            var random = new Random();
+
+            // Generating random 10 questions
+            var randomQuestions = questions.OrderBy(q => random.Next()).Take(10).ToList();
+            HttpContext.Session.Set("Questions", randomQuestions);
             HttpContext.Session.SetInt32("CurrentQuestion", 0);
             HttpContext.Session.SetInt32("Score", 0);
 
@@ -42,20 +44,23 @@ namespace MCQAssignment3.Controllers
                 return RedirectToAction("Result");
             }
 
-            var currentQuestion = questions[currentQuestionIndex];
-            ViewBag.CurrentQuestionIndex = currentQuestionIndex + 1; // 1-based index
+            // Passing the index and count information to the view
+            ViewBag.CurrentQuestionIndex = currentQuestionIndex;
             ViewBag.TotalQuestions = questions.Count;
 
             // Retrieve the selected answer for this question
             var selectedAnswer = HttpContext.Session.GetSelectedAnswer(currentQuestionIndex);
 
-            // Pass the selected answer to the view
-            ViewBag.SelectedAnswer = selectedAnswer;
+            // Ensure selectedAnswer is safely retrieved (e.g., -1 if not set)
+            int safeSelectedAnswer = selectedAnswer ?? -1; // Default value when null
 
-            return View(currentQuestion);
+            return View(new QuizViewModel
+            {
+                Questions = questions,
+                CurrentQuestionIndex = currentQuestionIndex,
+                SelectedAnswer = safeSelectedAnswer
+            });
         }
-
-
 
         [HttpPost]
         public IActionResult Answer(int selectedOption)
@@ -68,39 +73,38 @@ namespace MCQAssignment3.Controllers
             {
                 var currentQuestion = questions[currentQuestionIndex];
 
-                // Store the selected answer for this question
+                // Storing the selected answer for this question
                 HttpContext.Session.SetSelectedAnswer(currentQuestionIndex, selectedOption);
 
-                // Check if the selected answer is correct and update the score
+                // Checking if the selected answer is correct and updating the score
                 if (selectedOption == currentQuestion.CorrectOption)
                 {
-                    score++;  // Increment score if the answer is correct
+                    score++; 
                 }
 
-                // Store the updated score in session
+                // Storing the updated score in session storage
                 HttpContext.Session.SetInt32("Score", score);
 
-                // Move to the next question
+                // next question
                 HttpContext.Session.SetInt32("CurrentQuestion", currentQuestionIndex + 1);
             }
 
             return RedirectToAction("Question");
         }
 
-
         [HttpPost]
         public IActionResult GoBack()
         {
             var currentQuestionIndex = HttpContext.Session.GetInt32("CurrentQuestion") ?? 1;
 
-            if (currentQuestionIndex >= 1)
+            if (currentQuestionIndex > 0) 
             {
-                // Decrease the current question index to go backward
                 HttpContext.Session.SetInt32("CurrentQuestion", currentQuestionIndex - 1);
             }
 
             return RedirectToAction("Question");
         }
+
 
         public IActionResult Result()
         {
@@ -109,10 +113,29 @@ namespace MCQAssignment3.Controllers
                 ? "You have successfully passed the test."
                 : "Unfortunately you did not pass the test. Please try again later!";
 
+            // Creating a new Result object
+            var result = new Result
+            {
+                Score = score,
+                DateTime = DateTime.Now  // Set the current date and time
+            };
+
+            // Save the result to the database
+            _context.Results.Add(result);
+            _context.SaveChanges();
+
             ViewBag.Score = score;
             ViewBag.Message = message;
+
             HttpContext.Session.Clear();
             return View();
+        }
+
+
+        public IActionResult PastScores()
+        {
+            var scores = _context.Results.ToList();
+            return View(scores);
         }
     }
 

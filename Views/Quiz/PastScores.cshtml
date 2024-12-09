@@ -1,0 +1,23 @@
+﻿@{
+    ViewData["Title"] = "Past Results";
+}
+
+<h1>Past Scores</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Score</th>
+            <th>Date/Time</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var score in Model)
+        {
+            <tr>
+                <td>@score.Score</td>
+                <td>@score.DateTime</td>
+            </tr>
+        }
+    </tbody>
+</table>
+<a href="/">Return Home</a>
